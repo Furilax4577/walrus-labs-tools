@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   uptime-kuma:
     image: louislam/uptime-kuma:latest
@@ -6,3 +8,13 @@ services:
       - "3001:3001"
     volumes:
       - ./uptime-kuma-data:/app/data
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: always
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=https://ollama.walrus-labs.fr
+    volumes:
+      - open-webui:/app/backend/data
