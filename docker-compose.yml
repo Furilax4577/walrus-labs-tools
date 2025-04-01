@@ -6,23 +6,52 @@ services:
       - "3001:3001"
     volumes:
       - uptime-kuma-data:/app/data
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
-  # n8n:
-  #   image: n8nio/n8n
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5678:5678"
-  #   environment:
-  #     - N8N_BASIC_AUTH_ACTIVE=true
-  #     - N8N_BASIC_AUTH_USER=admin
-  #     - N8N_BASIC_AUTH_PASSWORD=admin123
-  #     - N8N_HOST=n8n.local
-  #     - N8N_PORT=5678
-  #     - N8N_PROTOCOL=http
-  #     - TZ=Europe/Paris
-  #   volumes:
-  #     - n8n_data:/home/node/.n8n
+  nginx-proxy-manager:
+    image: jlesage/nginx-proxy-manager:latest
+    restart: always
+    ports:
+      - "80:8080" # HTTP
+      - "443:4443" # HTTPS
+      - "81:8181" # UI
+    volumes:
+      - npm-config:/config
+      - npm-data:/data
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8181"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  watchtower:
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --cleanup --label-enable --interval 300
+    environment:
+      - WATCHTOWER_NOTIFICATIONS=email
+      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=watchtower@walrus-labs.fr
+      - WATCHTOWER_NOTIFICATION_EMAIL_TO=douville.quentin@gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=smtp-relay.brevo.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT=587
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=7d8bea001@smtp-brevo.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=HRzMg1GAhFsTt2DO
+      - WATCHTOWER_NOTIFICATION_EMAIL_DELAY=2
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_AUTH_METHOD=PLAIN
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_TLS_SKIP_VERIFY=false
 
 volumes:
   uptime-kuma-data:
-  # n8n_data:
+  npm-config:
+  npm-data:
