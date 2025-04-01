@@ -1,1 +1,53 @@
+name: Deploy de "angular-project" en production
 
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+  env:
+    VPS_IP: ${{ secrets.VPS_IP }}
+    VPS_USER: ${{ secrets.VPS_USER }}
+    VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+    SMTP_HOST: ${{ secrets.SMTP_HOST }}
+    SMTP_PORT: ${{ secrets.SMTP_PORT }}
+    SMTP_USER: ${{ secrets.SMTP_USER }}
+    SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+    SMTP_FROM: ${{ secrets.SMTP_FROM }}
+    SMTP_TO: ${{ secrets.SMTP_TO }}
+    VPS_DEPLOY_PATH: ~/www/walrus-labs-tools
+
+  steps:
+    - name: 📥 Cloner le dépôt
+      uses: actions/checkout@v3
+
+    - name: 🔑 Ajouter la clé SSH du serveur
+      run: |
+        mkdir -p ~/.ssh
+        echo "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan -t ed25519 $VPS_IP >> ~/.ssh/known_hosts
+
+    - name: 📂 Créer le répertoire cible sur le serveur
+      run: ssh -i ~/.ssh/id_ed25519 $VPS_USER@$VPS_IP "mkdir -p $VPS_DEPLOY_PATH && chmod 755 $VPS_DEPLOY_PATH"
+
+    - name: 🚀 Déploiement rapide avec `rsync`
+      run: |
+        rsync -azP --delete --exclude=node_modules -e "ssh -i ~/.ssh/id_ed25519" ./ $VPS_USER@$VPS_IP:$VPS_DEPLOY_PATH
+
+    - name: 🐳 Déployer le conteneur via Docker Compose
+      run: |
+        ssh -i ~/.ssh/id_ed25519 $VPS_USER@$VPS_IP << EOF
+        cd $VPS_DEPLOY_PATH
+        export SMTP_HOST="${SMTP_HOST}"
+        export SMTP_PORT="${SMTP_PORT}"
+        export SMTP_USER="${SMTP_USER}"
+        export SMTP_PASSWORD="${SMTP_PASSWORD}"
+        export SMTP_FROM="${SMTP_FROM}"
+        export SMTP_TO="${SMTP_TO}"
+        docker compose up -d
+        EOF
